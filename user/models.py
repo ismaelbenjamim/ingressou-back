@@ -54,6 +54,7 @@ class Usuario(AbstractUser):
 
 class Ingresso(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name="ingressos")
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -61,3 +62,15 @@ class Ingresso(models.Model):
 
     def __str__(self):
         return f'{self.usuario} - {self.created_at}'
+
+
+class Pagamento(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    chave = models.TextField(unique=True)
+    valor = models.DecimalField(max_digits=10, decimal_places=2)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.chave} - {self.valor}'
+

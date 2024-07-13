@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework.authtoken.admin import User
 
-from user.models import Ingresso
+from user.models import Ingresso, Pagamento
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -37,6 +37,30 @@ class IngressoSerializer(serializers.ModelSerializer):
         return Ingresso.objects.create(**validated_data)
 
 
-
 class ValidateIngressoSerializer(serializers.Serializer):
     ingresso = serializers.UUIDField(required=True)
+
+
+class LoginSerializer(serializers.Serializer):
+    cpf = serializers.CharField(required=True)
+    password = serializers.CharField(required=True)
+
+
+class SetPasswordSerializer(serializers.Serializer):
+    cpf = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+
+
+class EsqueciSenhaSerializer(serializers.Serializer):
+    cpf = serializers.CharField(required=True)
+
+
+class RedefinirSenhaSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+
+
+class PagamentoSerializer(serializers.Serializer):
+    class Meta:
+        model = Pagamento
+        fields = ['chave', 'valor']

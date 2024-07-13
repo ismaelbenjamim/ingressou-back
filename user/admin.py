@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from user.models import Usuario, Ingresso
+from user.models import Usuario, Ingresso, Pagamento
 
 
 # Register your models here.
@@ -14,3 +14,7 @@ class UsuarioAdmin(admin.ModelAdmin):
 class IngressoAdmin(admin.ModelAdmin):
     list_display = ('usuario', 'created_at')
 
+
+@admin.register(Pagamento)
+class PagamentoAdmin(admin.ModelAdmin):
+    list_display = ('chave', 'valor')
