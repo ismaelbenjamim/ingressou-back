@@ -26,7 +26,7 @@ SECRET_KEY = config("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config("DEBUG")
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 # Application definition
 
@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     'rest_framework',
     "rest_framework.authtoken",
     'django_filters',
+    'drf_spectacular',
+    'corsheaders',
 
     # Own apps
     'user'
@@ -50,6 +52,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -62,8 +65,7 @@ ROOT_URLCONF = 'ingressou_back.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates']
-        ,
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -138,4 +140,36 @@ DEFAULT_FROM_EMAIL = config('EMAIL_USER')
 
 REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DATE_FORMAT': "%d/%m/%Y",
+    'DATE_INPUT_FORMATS': ["%d/%m/%Y"],
+    'DATETIME_FORMAT': "%d/%m/%Y %H:%M:%S",
+    'DATETIME_INPUT_FORMATS': ["%d/%m/%Y %H:%M:%S"],
+}
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.up.railway.app",
+    "https://*.railway.app",
+    "https://*.127.0.0.1",
+    "http://localhost:8080",
+    "http://localhost:*",
+]
+
+CORS_ALLOW_HEADERS = ["*"]
+CORS_ALLOW_CREDENTIALS = True
+CORS_ORIGIN_ALLOW_ALL = True
+CORS_ALLOW_METHODS = (
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+)
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Ingressou API',
+    'DESCRIPTION': 'Ingressou é um projeto de código aberto',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False
 }

@@ -14,15 +14,17 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
 from user.apis.serializers import UserSerializer, IngressoSerializer, ValidateIngressoSerializer, LoginSerializer, \
-    SetPasswordSerializer, EsqueciSenhaSerializer, RedefinirSenhaSerializer, PagamentoSerializer
+    EsqueciSenhaSerializer, RedefinirSenhaSerializer, PagamentoSerializer, ValidateCpfSerializer, \
+    GenerateIngressoSerializer, FirstAccessSerializer, PaymentIngressoSerializer, MeusIngressosSerializer
 from user.filters import UserFilter
+from user.gerar_qrcode import gerar_qr_code_base64
 from user.models import Ingresso, UserType, Pagamento
 
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    http_method_names = ['get', 'post', 'put']
+    http_method_names = ['get', 'post', 'put', 'delete']
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
     filterset_class = UserFilter
@@ -37,7 +39,21 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_401_UNAUTHORIZED)
         return super().create(request, *args, **kwargs)
 
-    @action(detail=False, methods=['post'], permission_classes=[])
+    @action(detail=False, methods=['get'], permission_classes=[],
+            serializer_class=ValidateCpfSerializer, url_path='validate_cpf/(?P<cpf>[^/.]+)')
+    def validate_cpf(self, request, cpf, *args, **kwargs):
+        serializer = ValidateCpfSerializer(data={
+            "cpf": cpf
+        })
+        if serializer.is_valid():
+            cpf = serializer.validated_data['cpf']
+            user = get_object_or_404(User, cpf=cpf)
+            return Response({
+                "primeiro_acesso": user.is_primeiro_acesso
+            }, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['post'], permission_classes=[], serializer_class=LoginSerializer)
     def login(self, request, *args, **kwargs):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
@@ -51,28 +67,33 @@ class UserViewSet(viewsets.ModelViewSet):
                     return Response({'error': 'User is inactive.'}, status=status.HTTP_400_BAD_REQUEST)
 
                 token, created = Token.objects.get_or_create(user=user)
-                return Response({'token': token.key})
+                return Response({
+                    'token': token.key,
+                    'tipo': user.tipo
+                })
 
             return Response({'error': 'Invalid credentials.'}, status=status.HTTP_401_UNAUTHORIZED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=False, methods=['post'], permission_classes=[])
+    @action(detail=False, methods=['post'], permission_classes=[], serializer_class=FirstAccessSerializer)
     def primeiro_acesso(self, request, *args, **kwargs):
-        serializer = SetPasswordSerializer(data=request.data)
+        serializer = FirstAccessSerializer(data=request.data)
         if serializer.is_valid():
             cpf = serializer.validated_data['cpf']
-            new_password = serializer.validated_data['new_password']
+            password = serializer.validated_data['password']
+            email = serializer.validated_data['email']
 
             try:
                 user = User.objects.get(cpf=cpf)
                 if not user.is_primeiro_acesso:
                     return Response({'error': 'Senha já definida'}, status=status.HTTP_400_BAD_REQUEST)
 
-                user.password = make_password(new_password)
+                user.password = make_password(password)
                 user.is_primeiro_acesso = False
+                user.email = email
                 user.save()
-                return Response({'success': 'senha definida com sucesso'})
+                return Response({'success': 'dados definidos com sucesso'})
 
             except User.DoesNotExist:
                 return Response({'error': 'usuário não encontrado'}, status=status.HTTP_404_NOT_FOUND)
@@ -136,7 +157,7 @@ class IngressoViewSet(viewsets.ModelViewSet):
     serializer_class = IngressoSerializer
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
-    http_method_names = ['get', 'post']
+    http_method_names = ['get', 'post', 'put', 'delete']
 
     def get_queryset(self):
         return self.request.user.ingressos.all()
@@ -158,6 +179,34 @@ class IngressoViewSet(viewsets.ModelViewSet):
         ingresso.save()
 
         return Response({"msg": "Ingresso autorizado"}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], serializer_class=GenerateIngressoSerializer)
+    def generate(self, request):
+        if self.request.user.tipo == UserType.COMUM:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        ingresso = serializer.create(serializer.validated_data)
+        response = IngressoSerializer(instance=ingresso)
+        return Response(response.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['post'], serializer_class=PaymentIngressoSerializer)
+    def payment(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        ingressos_pk = serializer.create(serializer.validated_data)
+        response = IngressoSerializer(many=True, instance=Ingresso.objects.filter(pk__in=ingressos_pk))
+        return Response(response.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], serializer_class=MeusIngressosSerializer)
+    def meus_ingressos(self, request):
+        ingressos = Ingresso.objects.filter(usuario=self.request.user)
+        data = {
+            "ingressos": [gerar_qr_code_base64(ingresso.pk) for ingresso in ingressos]
+        }
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
 
 class PagamentoViewSet(viewsets.ModelViewSet):

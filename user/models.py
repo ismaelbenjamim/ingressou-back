@@ -41,8 +41,9 @@ class Usuario(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     cpf = models.IntegerField(unique=True, validators=[MaxValueValidator(99999999999)])
     email = models.EmailField(unique=True, null=True, blank=True)
-    tipo = models.CharField(max_length=20, choices=UserType.TYPES, null=True, blank=True)
+    tipo = models.CharField(max_length=20, choices=UserType.TYPES, default=UserType.COMUM)
     is_primeiro_acesso = models.BooleanField(default=True)
+    birthday = models.DateField(null=True, blank=True)
     USERNAME_FIELD = "cpf"
     username = None
 
@@ -52,10 +53,23 @@ class Usuario(AbstractUser):
         return f'{self.cpf} - {self.email}'
 
 
+class UserSituation:
+    SOLTEIRO = "SOLTEIRO"
+    COMPROMETIDO = "COMPROMETIDO"
+
+    TYPES = (
+        (SOLTEIRO, "Solteiro(a)"),
+        (COMPROMETIDO, "Comprometido(a)"),
+    )
+
+
 class Ingresso(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name="ingressos")
+    nome = models.CharField(max_length=200)
+    data_nascimento = models.DateField()
+    situacao = models.CharField(max_length=100, choices=UserSituation.TYPES, default=UserSituation.SOLTEIRO)
 
     created_at = models.DateTimeField(auto_now_add=True)
     utilizado_em = models.DateTimeField(null=True, blank=True)
